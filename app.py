@@ -4,53 +4,26 @@ Created on Tue Mar  3 16:46:17 2026
 
 @author: JasonRunge
 """
-
 import streamlit as st
 import yfinance as yf
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
-from io import BytesIO
 
 st.set_page_config(page_title="Stock Long-Term Analysis", layout="wide")
-
 st.title("📈 Stock Long-Term Analysis Tool")
 
-# ==========================
-# USER INPUTS
-# ==========================
-
+# -------------------------
+# STOCK INPUT
+# -------------------------
 col1, col2, col3 = st.columns(3)
-
 with col1:
     ticker_symbol = st.text_input("Ticker Symbol", "AAPL")
 
-with col2:
-    stock_growth = st.slider(
-        "Expected Annual Stock Growth",
-        min_value=0.0,
-        max_value=0.20,
-        value=0.05,
-        step=0.005
-    )
-
-with col3:
-    div_growth = st.slider(
-        "Expected Annual Dividend Growth",
-        min_value=0.0,
-        max_value=0.20,
-        value=0.03,
-        step=0.005
-    )
-
-projection_years = st.slider("Projection Years", 5, 40, 20)
-
-# ==========================
-# DOWNLOAD DATA
-# ==========================
-
-if st.button("Run Analysis"):
-
+# -------------------------
+# DOWNLOAD DATA BUTTON
+# -------------------------
+if st.button("Get Data"):
     ticker = yf.Ticker(ticker_symbol)
     df = ticker.history(period="max", interval="1d")
 
@@ -59,97 +32,105 @@ if st.button("Run Analysis"):
         st.stop()
 
     st.success(f"Downloaded {len(df)} rows")
+    Data_0_Import = df.copy()
 
-    # ==========================
-    # HISTORICAL PLOT
-    # ==========================
+    # --- Stock Table ---
+    close = Data_0_Import["Close"].copy()
+    year_end_close = close.resample("YE").last()
+    year_end_close.index = year_end_close.index.year
+    yoy_growth = year_end_close.pct_change() * 100
+    stock_table = pd.DataFrame({"Year_End_Close": year_end_close, "YoY_Growth_%": yoy_growth})
 
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(
-        x=df.index,
-        y=df["Close"],
-        mode="lines",
-        name="Close Price"
-    ))
+    # --- Dividend Table ---
+    div = Data_0_Import["Dividends"].copy()
+    div.index = pd.to_datetime(div.index)
+    div = div[div != 0]
+    div_yearly = div.groupby(div.index.year).sum()
+    if len(div_yearly) > 1:
+        div_yearly = div_yearly.iloc[1:]
+    current_year = pd.Timestamp.today().year
+    if len(div_yearly) > 0 and div_yearly.index[-1] == current_year:
+        div_yearly = div_yearly.iloc[:-1]
+    div_table = pd.DataFrame({"Total_Dividends_Per_Year": div_yearly})
+    div_table["Dividend_YoY_Growth_%"] = div_table["Total_Dividends_Per_Year"].pct_change() * 100
 
-    fig.update_layout(
-        title=f"{ticker_symbol} Historical Price",
-        xaxis_title="Date",
-        yaxis_title="Price",
-        template="plotly_white"
-    )
+    # Store in session_state
+    st.session_state['stock_table'] = stock_table
+    st.session_state['div_table'] = div_table
 
-    st.plotly_chart(fig, use_container_width=True)
+# -------------------------
+# CHECK IF DATA EXISTS
+# -------------------------
+if 'stock_table' in st.session_state and 'div_table' in st.session_state:
+    stock_table = st.session_state['stock_table']
+    div_table = st.session_state['div_table']
 
-    # ==========================
-    # PROJECTION MODEL
-    # ==========================
+    # Show stock and dividend tables
+    st.subheader("📊 Stock Historical Values")
+    st.dataframe(stock_table, width=800, height=300)
+    st.subheader("💰 Dividend Historical Values")
+    st.dataframe(div_table, width=800, height=300)
 
-    last_price = df["Close"].iloc[-1]
-    current_div = ticker.info.get("dividendRate", 0)
+    # -------------------------
+    # PORTFOLIO INPUTS
+    # -------------------------
+    st.subheader("💡 Portfolio Projection Inputs")
+    initial_cash = st.number_input("Initial Investment Amount ($)", min_value=0.0, value=10000.0, step=1000.0, key="init_cash")
+    annual_contribution = st.number_input("Annual Contribution ($)", min_value=0.0, value=5000.0, step=500.0, key="annual_contrib")
+    n_years = st.number_input("Projection Horizon (Years)", min_value=1, max_value=100, value=10, step=1, key="proj_years")
+    stock_growth = st.number_input("Expected Annual Stock Growth (0.05 = 5%)", value=0.07, step=0.01, format="%.4f", key="stock_growth")
+    div_growth = st.number_input("Expected Annual Dividend Growth (0.03 = 3%)", value=0.03, step=0.01, format="%.4f", key="div_growth")
 
-    years = np.arange(1, projection_years + 1)
+    if st.button("Run Portfolio Projection"):
+        last_stock_price = stock_table["Year_End_Close"].iloc[-1]
+        last_dividend_per_share = div_table["Total_Dividends_Per_Year"].iloc[-1] if not div_table.empty else 0
 
-    projected_prices = last_price * (1 + stock_growth) ** years
-    projected_divs = current_div * (1 + div_growth) ** years
+        shares_owned = []
+        stock_prices = []
+        dividend_per_share = []
+        portfolio_values = []
 
-    projection_df = pd.DataFrame({
-        "Year": years,
-        "Projected Price": projected_prices,
-        "Projected Dividend": projected_divs
-    })
+        # Initial purchase
+        initial_shares = initial_cash / last_stock_price
+        shares_owned.append(initial_shares)
+        stock_prices.append(last_stock_price)
+        dividend_per_share.append(last_dividend_per_share)
+        portfolio_values.append(initial_shares * last_stock_price)
 
-    st.subheader("Projection Table")
-    st.dataframe(projection_df)
+        for year in range(1, int(n_years)):
+            next_price = stock_prices[-1] * (1 + stock_growth)
+            stock_prices.append(next_price)
+            next_div_ps = dividend_per_share[-1] * (1 + div_growth)
+            dividend_per_share.append(next_div_ps)
+            dividend_received = shares_owned[-1] * next_div_ps
+            total_new_cash = annual_contribution + dividend_received
+            new_shares = total_new_cash / next_price
+            total_shares = shares_owned[-1] + new_shares
+            shares_owned.append(total_shares)
+            portfolio_value = total_shares * next_price
+            portfolio_values.append(portfolio_value)
 
-    # ==========================
-    # PROJECTION PLOT
-    # ==========================
+        projection_table = pd.DataFrame({
+            "Year": range(1, int(n_years)+1),
+            "Stock_Price": stock_prices,
+            "Shares_Owned": shares_owned,
+            "Dividend_per_Share": dividend_per_share,
+            "Portfolio_Value": portfolio_values
+        })
 
-    fig2 = go.Figure()
+        st.subheader("📈 Portfolio Projection Table")
+        st.dataframe(projection_table, width=800, height=400)
 
-    fig2.add_trace(go.Scatter(
-        x=projection_df["Year"],
-        y=projection_df["Projected Price"],
-        mode="lines",
-        name="Projected Price"
-    ))
+        total_cash_contributed = initial_cash + annual_contribution * n_years
+        estimated_portfolio_worth = projection_table["Portfolio_Value"].iloc[-1]
+        total_gain = estimated_portfolio_worth - total_cash_contributed
+        total_gain_pct = (estimated_portfolio_worth / total_cash_contributed - 1) * 100
 
-    fig2.add_trace(go.Scatter(
-        x=projection_df["Year"],
-        y=projection_df["Projected Dividend"],
-        mode="lines",
-        name="Projected Dividend",
-        yaxis="y2"
-    ))
-
-    fig2.update_layout(
-        title="Projection Model",
-        xaxis_title="Year",
-        yaxis=dict(title="Projected Price"),
-        yaxis2=dict(
-            title="Projected Dividend",
-            overlaying="y",
-            side="right"
-        ),
-        template="plotly_white"
-    )
-
-    st.plotly_chart(fig2, use_container_width=True)
-
-    # ==========================
-    # EXCEL EXPORT
-    # ==========================
-
-    output = BytesIO()
-
-    with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
-        df.to_excel(writer, sheet_name="Historical Data")
-        projection_df.to_excel(writer, sheet_name="Projections", index=False)
-
-    st.download_button(
-        label="Download Excel Report",
-        data=output.getvalue(),
-        file_name=f"{ticker_symbol}_analysis.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
+        st.subheader("💰 Portfolio Summary")
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("Total Cash Contributed", f"${total_cash_contributed:,.2f}")
+        col2.metric(f"Portfolio Worth after {int(n_years)} yrs", f"${estimated_portfolio_worth:,.2f}")
+        col3.metric("Total Gain ($)", f"${total_gain:,.2f}")
+        col4.metric("Total Gain (%)", f"{total_gain_pct:.2f}%")
+else:
+    st.info("Please click 'Get Data' to download stock and dividend data before running projections.")
