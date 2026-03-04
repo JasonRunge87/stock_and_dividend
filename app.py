@@ -41,6 +41,23 @@ if st.button("Get Data"):
     yoy_growth = year_end_close.pct_change() * 100
     stock_table = pd.DataFrame({"Year_End_Close": year_end_close, "YoY_Growth_%": yoy_growth})
 
+    # ----- STOCK STATS -----
+    stock_avg = stock_yoy.mean()
+    stock_median = stock_yoy.median()
+    
+    stock_mode_series = stock_yoy.mode()
+    stock_mode = stock_mode_series.iloc[0] if not stock_mode_series.empty else np.nan
+    
+    stock_std = stock_yoy.std()
+    
+    st.subheader("Stock Price Growth Statistics")
+    
+    st.write(f"Average YoY Growth: {stock_avg:.2f}%")
+    st.write(f"Median YoY Growth: {stock_median:.2f}%")
+    st.write(f"Mode YoY Growth: {stock_mode:.2f}%" if not np.isnan(stock_mode) else "Mode YoY Growth: N/A")
+    st.write(f"Standard Deviation: {stock_std:.2f}%")
+    st.write(f"CAGR: {stock_cagr * 100:.2f}%")
+    
     # --- Dividend Table ---
     div = Data_0_Import["Dividends"].copy()
     div.index = pd.to_datetime(div.index)
@@ -53,6 +70,21 @@ if st.button("Get Data"):
         div_yearly = div_yearly.iloc[:-1]
     div_table = pd.DataFrame({"Total_Dividends_Per_Year": div_yearly})
     div_table["Dividend_YoY_Growth_%"] = div_table["Total_Dividends_Per_Year"].pct_change() * 100
+
+    # ----- DIVIDEND STATS -----
+    div_avg = div_yoy.mean()
+    div_median = div_yoy.median()
+
+    div_mode_series = div_yoy.mode()
+    div_mode = div_mode_series.iloc[0] if not div_mode_series.empty else np.nan
+    div_std = div_yoy.std()
+
+    st.subheader("Dividend Growth Statistics")
+    st.write(f"Average YoY Growth: {div_avg:.2f}%")
+    st.write(f"Median YoY Growth: {div_median:.2f}%")
+    st.write(f"Mode YoY Growth: {div_mode:.2f}%" if not np.isnan(div_mode) else "Mode YoY Growth: N/A")
+    st.write(f"Standard Deviation: {div_std:.2f}%")
+    st.write(f"CAGR: {div_cagr * 100:.2f}%")
 
     # Store in session_state
     st.session_state['stock_table'] = stock_table
@@ -134,3 +166,4 @@ if 'stock_table' in st.session_state and 'div_table' in st.session_state:
         col4.metric("Total Gain (%)", f"{total_gain_pct:.2f}%")
 else:
     st.info("Please click 'Get Data' to download stock and dividend data before running projections.")
+
