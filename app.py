@@ -42,14 +42,27 @@ if st.button("Get Data"):
     stock_table = pd.DataFrame({"Year_End_Close": year_end_close, "YoY_Growth_%": yoy_growth})
 
     # ----- STOCK STATS -----
-    stock_yoy = stock_table["YoY_Growth_%"].dropna()
-    stock_avg = stock_yoy.mean()
-    stock_median = stock_yoy.median()
-    stock_mode_series = stock_yoy.mode()
-    stock_mode = stock_mode_series.iloc[0] if not stock_mode_series.empty else np.nan
-    
-    stock_std = stock_yoy.std()
+    # Force numeric + remove NaN
+    stock_yoy = stock_table["YoY_Growth_%"]
+    stock_yoy = pd.to_numeric(stock_yoy, errors="coerce").dropna()
 
+    if len(stock_yoy) > 0:
+    
+        stock_avg = stock_yoy.mean()
+        stock_median = stock_yoy.median()
+    
+        stock_mode_series = stock_yoy.mode()
+        stock_mode = stock_mode_series.iloc[0] if not stock_mode_series.empty else np.nan
+    
+        stock_std = stock_yoy.std()
+    
+        st.subheader("Stock Price Growth Statistics")
+    
+        st.write(f"Average YoY Growth: {stock_avg:.2f}%")
+        st.write(f"Median YoY Growth: {stock_median:.2f}%")
+        st.write(f"Mode YoY Growth: {stock_mode:.2f}%" if not np.isnan(stock_mode) else "Mode YoY Growth: N/A")
+        st.write(f"Standard Deviation: {stock_std:.2f}%")
+    
     
     
     # --- Dividend Table ---
@@ -67,12 +80,13 @@ if st.button("Get Data"):
 
     # ----- DIVIDEND STATS -----
     div_yoy = div_table["Dividend_YoY_Growth_%"].dropna()
-    div_avg = div_yoy.mean()
-    div_median = div_yoy.median()
 
-    div_mode_series = div_yoy.mode()
-    div_mode = div_mode_series.iloc[0] if not div_mode_series.empty else np.nan
-    div_std = div_yoy.std()
+    if len(div_yoy) > 0:
+        div_avg = div_yoy.mean()
+        div_median = div_yoy.median()
+        div_mode_series = div_yoy.mode()
+        div_mode = div_mode_series.iloc[0] if not div_mode_series.empty else np.nan
+        div_std = div_yoy.std()
 
 
 
@@ -182,6 +196,7 @@ if 'stock_table' in st.session_state and 'div_table' in st.session_state:
         col4.metric("Total Gain (%)", f"{total_gain_pct:.2f}%")
 else:
     st.info("Please click 'Get Data' to download stock and dividend data before running projections.")
+
 
 
 
