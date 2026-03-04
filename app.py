@@ -56,7 +56,7 @@ if st.button("Get Data"):
     st.write(f"Median YoY Growth: {stock_median:.2f}%")
     st.write(f"Mode YoY Growth: {stock_mode:.2f}%" if not np.isnan(stock_mode) else "Mode YoY Growth: N/A")
     st.write(f"Standard Deviation: {stock_std:.2f}%")
-    st.write(f"CAGR: {stock_cagr * 100:.2f}%")
+    #st.write(f"CAGR: {stock_cagr * 100:.2f}%")
     
     # --- Dividend Table ---
     div = Data_0_Import["Dividends"].copy()
@@ -85,7 +85,7 @@ if st.button("Get Data"):
     st.write(f"Median YoY Growth: {div_median:.2f}%")
     st.write(f"Mode YoY Growth: {div_mode:.2f}%" if not np.isnan(div_mode) else "Mode YoY Growth: N/A")
     st.write(f"Standard Deviation: {div_std:.2f}%")
-    st.write(f"CAGR: {div_cagr * 100:.2f}%")
+    #st.write(f"CAGR: {div_cagr * 100:.2f}%")
 
     # Store in session_state
     st.session_state['stock_table'] = stock_table
@@ -167,5 +167,6 @@ if 'stock_table' in st.session_state and 'div_table' in st.session_state:
         col4.metric("Total Gain (%)", f"{total_gain_pct:.2f}%")
 else:
     st.info("Please click 'Get Data' to download stock and dividend data before running projections.")
+
 
 
