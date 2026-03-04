@@ -91,7 +91,7 @@ if 'stock_table' in st.session_state and 'div_table' in st.session_state:
     # STOCK INFO
     # -------------------------
     # Header
-    st.subheader("📊 Stock Historical Values"
+    st.subheader("📊 Stock Historical Values")
     
     # Dataframe Results
     st.dataframe(stock_table, width=800, height=300)
@@ -182,6 +182,7 @@ if 'stock_table' in st.session_state and 'div_table' in st.session_state:
         col4.metric("Total Gain (%)", f"{total_gain_pct:.2f}%")
 else:
     st.info("Please click 'Get Data' to download stock and dividend data before running projections.")
+
 
 
 
