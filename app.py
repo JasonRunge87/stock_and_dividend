@@ -42,9 +42,9 @@ if st.button("Get Data"):
     stock_table = pd.DataFrame({"Year_End_Close": year_end_close, "YoY_Growth_%": yoy_growth})
 
     # ----- STOCK STATS -----
+    stock_yoy = stock_table["YoY_Growth_%"].dropna()
     stock_avg = stock_yoy.mean()
     stock_median = stock_yoy.median()
-    
     stock_mode_series = stock_yoy.mode()
     stock_mode = stock_mode_series.iloc[0] if not stock_mode_series.empty else np.nan
     
@@ -72,6 +72,7 @@ if st.button("Get Data"):
     div_table["Dividend_YoY_Growth_%"] = div_table["Total_Dividends_Per_Year"].pct_change() * 100
 
     # ----- DIVIDEND STATS -----
+    div_yoy = div_table["Dividend_YoY_Growth_%"].dropna()
     div_avg = div_yoy.mean()
     div_median = div_yoy.median()
 
@@ -166,4 +167,5 @@ if 'stock_table' in st.session_state and 'div_table' in st.session_state:
         col4.metric("Total Gain (%)", f"{total_gain_pct:.2f}%")
 else:
     st.info("Please click 'Get Data' to download stock and dividend data before running projections.")
+
 
